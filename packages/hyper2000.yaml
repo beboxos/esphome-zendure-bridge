@@ -85,7 +85,7 @@ text_sensor:
               {"gridInputPower", [](int value) { publish_state_if_changed(id(${id}_gridInputPower), value); }},
               {"heatState", [](int value) { publish_state_if_changed(id(${id}_heatState), !!value); }},
               {"ambientSwitch", [](int value) { publish_state_if_changed(id(${id}_ambientSwitch), !!value); }},
-              {"lampSwitch", [](int value) { publish_state_if_changed(id(${id}_lampSwitch), !!value); }},
+              {"lampSwitch", [](int value) { publish_state_if_changed(id(${id}_lampSwitchSensor), !!value); }},  # Remplacé lampSwitch par lampSwitchSensor
               {"autoHeat", [](int value) { publish_state_if_changed(id(${id}_autoHeat), !!value); }},
               {"ctOff", [](int value) { publish_state_if_changed(id(${id}_ctOff), !!value); }},
               {"inputLimit", [](int value) { publish_state_if_changed(id(${id}_inputLimit), value); }},
@@ -206,6 +206,10 @@ sensor:
     disabled_by_default: true
     id: "${id}_packNum"
 
+  - platform: template
+    name: "${name} Grid Off Mode"    # Ajout du sensor manquant
+    id: "${id}_gridOffMode"
+
 number:
   - platform: template
     name: "${name} Soc Set"
@@ -286,8 +290,8 @@ binary_sensor:
     id: "${id}_ambientSwitch"
     name: "${name} Ambient Switch"
   - platform: template
-    id: "${id}_lampSwitch"
-    name: "${name} Lamp Switch"
+    id: "${id}_lampSwitchSensor"    # Renommé par sécurité, évite conflit avec switch
+    name: "${name} Lamp Switch State"
   - platform: template
     id: "${id}_autoHeat"
     name: "${name} Auto Heat"
@@ -414,5 +418,3 @@ select:
             std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
             ESP_LOGD("${id}", "Sending Command '%s'", buffer);
             return value
-
-
