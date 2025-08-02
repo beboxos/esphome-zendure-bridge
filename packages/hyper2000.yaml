@@ -1,15 +1,15 @@
 defaults:
   time_id: "zenduretime"
   name: "Hyper2000"
-  id: "hyper2000"
+  id: "hyper_2000"
   watt_limit: "1200"
   # mac_address: ""
 
 external_components:
   # We use a fixed version to ensure compatibility with the current version of the Zendure bridge.
   # When changing the component, make sure to update the version here.
-  - source: github://beboxos/esphome-zendure-bridge@1.0.7
-    components: [zendure]
+  - source: github://danez/esphome-zendure-bridge@1.0.7
+    components: [ zendure ]
 
 esphome:
   min_version: "2025.4.1"
@@ -99,7 +99,7 @@ text_sensor:
               {"minSoc", [](int value) { publish_state_if_changed(id(${id}_minSoc), value / PERCENT_SCALE); }},
               {"buzzerSwitch", [](int value) { publish_state_if_changed(id(${id}_buzzerSwitch), !!value); }},
               {"masterSwitch", [](int value) { publish_state_if_changed(id(${id}_masterSwitch), !!value); }},
-              {"packState", [](int value) {
+              {"acMode", [](int value) { const char* mode = (value == 1) ? "input" : "output"; publish_state_if_changed(id(${id}_acMode), mode);}},              {"packState", [](int value) {
                 const char* state = (value == 0) ? "Idle" : (value == 1) ? "Charging" : "Discharging";
                 publish_state_if_changed(id(${id}_packState), state);
               }},
@@ -117,11 +117,7 @@ text_sensor:
                 const char* brand = (value == 0) ? "Other" : (value == 1) ? "Hoymiles" : (value == 2) ? "Enphase" : (value == 3) ? "APsystems" : (value == 4) ? "Anker" : (value == 5) ? "Deye" : (value == 6) ? "BossWerk" : "TSUN";
                 publish_state_if_changed(id(${id}_pvBrand), brand);
               }},
-              {"inverseMaxPower", [](int value) { publish_state_if_changed(id(${id}_inverseMaxPower), value); }},
-              {"acMode", [](int value) {
-                const char* mode = (value == 1) ? "input" : "output";
-                publish_state_if_changed(id(${id}_acMode), mode);
-              }},
+              {"inverseMaxPower", [](int value) { publish_state_if_changed(id(${id}_inverseMaxPower), value); }}
             };
 
             json::parse_json(x, [](JsonObject root) -> bool {
@@ -132,9 +128,9 @@ text_sensor:
                 id(${id}_device_id),
                 "${id}"
               );
+
               return true;
             });
-
   - platform: template
     id: "${id}_packState"
     name: "${name} Pack State"
@@ -165,4 +161,300 @@ sensor:
     icon: "mdi:solar-power"
     device_class: power
     state_class: measurement
-    unit_of_measurement:
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    id: "${id}_solarPower1"
+  - platform: template
+    name: "${name} Solar Power 2"
+    icon: "mdi:solar-power"
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    id: "${id}_solarPower2"
+  - platform: template
+    name: "${name} Solar Input Power"
+    icon: "mdi:solar-power"
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    id: "${id}_solarInputPower"
+  - platform: template
+    name: "${name} Output Pack Power"
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    id: "${id}_outputPackPower"
+  - platform: template
+    name: "${name} Electricity Level"
+    device_class: battery
+    state_class: measurement
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    id: "${id}_electricLevel"
+  - platform: template
+    name: "${name} Pack Input Power"
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    id: "${id}_packInputPower"
+  - platform: template
+    name: "${name} Remain Out Time"
+    device_class: duration
+    state_class: measurement
+    unit_of_measurement: "h"
+    accuracy_decimals: 2
+    id: "${id}_remainOutTime"
+  - platform: template
+    name: "${name} Remain Input Time"
+    device_class: duration
+    state_class: measurement
+    unit_of_measurement: "h"
+    accuracy_decimals: 2
+    id: "${id}_remainInputTime"
+  - platform: template
+    name: "${name} Pack Num"
+    entity_category: diagnostic
+    disabled_by_default: true
+    accuracy_decimals: 0
+    id: "${id}_packNum"
+
+binary_sensor:
+  - platform: template
+    name: "${name} Pass"
+    id: "${id}_pass"
+  - platform: template
+    id: "${id}_wifiState"
+    name: "${name} Wifi State"
+    device_class: connectivity
+    icon: "mdi:wifi"
+    entity_category: diagnostic
+    disabled_by_default: true
+  - platform: template
+    id: "${id}_masterSwitch"
+    name: "${name} Master Switch"
+
+select:
+  - platform: template
+    name: "${name} PV Brand"
+    id: "${id}_pvBrand"
+    icon: "mdi:cog"
+    options:
+      - "Other"
+      - "Hoymiles"
+      - "Enphase"
+      - "APsystems"
+      - "Anker"
+      - "Deye"
+      - "BossWerk"
+      - "TSUN"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - ble_client.ble_write:
+          id: "zendure_ble_${id}"
+          service_uuid: a002
+          characteristic_uuid: c304
+          value: !lambda |-
+            char buffer[120];
+            int timestamp = (int) id(${time_id}).now().timestamp;
+            int propValue = x == "Other" ? 0 : (x == "Hoymiles" ? 1 : (x == "Enphase" ? 2 : (x == "APsystems" ? 3 : (x == "Anker" ? 4 : (x == "Deye" ? 5 : (x == "BossWerk" ? 6 : 7))))));
+            snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"pvBrand\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
+            std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
+            ESP_LOGD("${id}", "Sending Command '%s'", buffer);
+            return value;
+    - platform: template
+    name: "${name} AC Mode"
+    id: "${id}_acMode"
+    icon: "mdi:current-ac"
+    options:
+      - "input"
+      - "output"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - ble_client.ble_write:
+          id: "zendure_ble_${id}"
+          service_uuid: a002
+          characteristic_uuid: c304
+          value: !lambda |-
+            char buffer[120];
+            int timestamp = (int) id(${time_id}).now().timestamp;
+            int propValue = x == "input" ? 1 : 2;
+            snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"acMode\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
+            std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
+            ESP_LOGD("${id}", "Sending Command '%s'", buffer);
+            return value;
+  - platform: template
+    name: "${name} Hub State"
+    id: "${id}_hubState"
+    icon: "mdi:power-settings"
+    options:
+      - "Standby"
+      - "Shut Down"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - ble_client.ble_write:
+          id: "zendure_ble_${id}"
+          service_uuid: a002
+          characteristic_uuid: c304
+          value: !lambda |-
+            char buffer[120];
+            int timestamp = (int) id(${time_id}).now().timestamp;
+            int propValue = x == "Standby" ? 0 : 1;
+            snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"hubState\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
+            std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
+            ESP_LOGD("${id}", "Sending Command '%s'", buffer);
+            return value;
+  - platform: template
+    name: "${name} Pass Mode"
+    id: "${id}_passMode"
+    icon: "mdi:arrow-decision"
+    options:
+      - "Auto"
+      - "Always-Off"
+      - "Always-On"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - ble_client.ble_write:
+          id: "zendure_ble_${id}"
+          service_uuid: a002
+          characteristic_uuid: c304
+          value: !lambda |-
+            char buffer[120];
+            int timestamp = (int) id(${time_id}).now().timestamp;
+            int propValue = x == "Auto" ? 0 : (x == "Always-Off" ? 1 : 2);
+            snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"passMode\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
+            std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
+            ESP_LOGD("${id}", "Sending Command '%s'", buffer);
+            return value;
+
+switch:
+  - platform: ble_client
+    ble_client_id: "zendure_ble_${id}"
+    icon: "mdi:bluetooth"
+    entity_category: config
+    restore_mode: DISABLED
+    name: "${name} Bluetooth"
+  - platform: template
+    name: "${name} Buzzer Switch"
+    id: "${id}_buzzerSwitch"
+    optimistic: true
+    icon: "mdi:volume-high"
+    turn_on_action:
+      - !include
+        file: includes/ble-set-property-value.yaml
+        vars:
+          time_id: "${time_id}"
+          device_id: "${id}"
+          key: buzzerSwitch
+          value: 1
+    turn_off_action:
+      - !include
+        file: includes/ble-set-property-value.yaml
+        vars:
+          time_id: "${time_id}"
+          device_id: "${id}"
+          key: buzzerSwitch
+          value: 0
+  - platform: template
+    name: "${name} Auto Recover"
+    id: "${id}_autoRecover"
+    optimistic: true
+    icon: "mdi:restore"
+    turn_on_action:
+      - !include
+        file: includes/ble-set-property-value.yaml
+        vars:
+          time_id: "${time_id}"
+          device_id: "${id}"
+          key: autoRecover
+          value: 1
+    turn_off_action:
+      - !include
+        file: includes/ble-set-property-value.yaml
+        vars:
+          time_id: "${time_id}"
+          device_id: "${id}"
+          key: autoRecover
+          value: 0
+
+number:
+  - platform: template
+    name: "${name} Output Limit"
+    device_class: power
+    mode: slider
+    id: "${id}_outputLimit"
+    unit_of_measurement: W
+    min_value: 0
+    max_value: ${watt_limit}
+    step: 1
+    optimistic: true
+    set_action:
+      - !include
+        file: includes/ble-set-property.yaml
+        vars:
+          time_id: "${time_id}"
+          device_id: "${id}"
+          key: outputLimit
+          append_value: ""
+  - platform: template
+    name: "${name} Min Soc"
+    mode: slider
+    id: "${id}_minSoc"
+    icon: "mdi:battery-arrow-down"
+    unit_of_measurement: "%"
+    min_value: 0
+    max_value: 100
+    step: 1
+    optimistic: true
+    set_action:
+      - !include
+        file: includes/ble-set-property.yaml
+        vars:
+          time_id: "${time_id}"
+          device_id: "${id}"
+          key: minSoc
+          append_value: 0
+  - platform: template
+    name: "${name} Soc Set"
+    mode: slider
+    id: "${id}_socSet"
+    icon: "mdi:battery-arrow-up"
+    unit_of_measurement: "%"
+    min_value: 0
+    max_value: 100
+    step: 1
+    optimistic: true
+    set_action:
+      - !include
+        file: includes/ble-set-property.yaml
+        vars:
+          time_id: "${time_id}"
+          device_id: "${id}"
+          key: socSet
+          append_value: 0
+  - platform: template
+    name: "${name} Inverse Max Power"
+    device_class: power
+    mode: slider
+    id: "${id}_inverseMaxPower"
+    unit_of_measurement: W
+    min_value: 0
+    max_value: ${watt_limit}
+    step: 1
+    icon: "mdi:power-plug"
+    optimistic: true
+    set_action:
+      - !include
+        file: includes/ble-set-property.yaml
+        vars:
+          time_id: "${time_id}"
+          device_id: "${id}"
+          key: inverseMaxPower
+          append_value: ""
