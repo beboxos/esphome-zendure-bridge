@@ -1,8 +1,8 @@
 defaults:
   time_id: "zenduretime"
-  name: "Hub2000"
-  id: "hub_2000"
-  watt_limit: "800"
+  name: "Hyper2000"
+  id: "hyper2000"
+  watt_limit: "1200"
   # mac_address: ""
 
 external_components:
@@ -117,7 +117,11 @@ text_sensor:
                 const char* brand = (value == 0) ? "Other" : (value == 1) ? "Hoymiles" : (value == 2) ? "Enphase" : (value == 3) ? "APsystems" : (value == 4) ? "Anker" : (value == 5) ? "Deye" : (value == 6) ? "BossWerk" : "TSUN";
                 publish_state_if_changed(id(${id}_pvBrand), brand);
               }},
-              {"inverseMaxPower", [](int value) { publish_state_if_changed(id(${id}_inverseMaxPower), value); }}
+              {"inverseMaxPower", [](int value) { publish_state_if_changed(id(${id}_inverseMaxPower), value); }},
+              {"acMode", [](int value) {
+                const char* mode = (value == 1) ? "input" : "output";
+                publish_state_if_changed(id(${id}_acMode), mode);
+              }},
             };
 
             json::parse_json(x, [](JsonObject root) -> bool {
@@ -308,6 +312,28 @@ select:
             int timestamp = (int) id(${time_id}).now().timestamp;
             int propValue = x == "Auto" ? 0 : (x == "Always-Off" ? 1 : 2);
             snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"passMode\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
+            std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
+            ESP_LOGD("${id}", "Sending Command '%s'", buffer);
+            return value;
+    - platform: template
+    name: "${name} AC Mode"
+    id: "${id}_acMode"
+    icon: "mdi:current-ac"
+    options:
+      - "input"
+      - "output"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - ble_client.ble_write:
+          id: "zendure_ble_${id}"
+          service_uuid: a002
+          characteristic_uuid: c304
+          value: !lambda |-
+            char buffer[120];
+            int timestamp = (int) id(${time_id}).now().timestamp;
+            int propValue = x == "input" ? 1 : 2;
+            snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"acMode\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
             std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
             ESP_LOGD("${id}", "Sending Command '%s'", buffer);
             return value;
