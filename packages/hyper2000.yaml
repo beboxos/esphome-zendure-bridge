@@ -99,7 +99,8 @@ text_sensor:
               {"minSoc", [](int value) { publish_state_if_changed(id(${id}_minSoc), value / PERCENT_SCALE); }},
               {"buzzerSwitch", [](int value) { publish_state_if_changed(id(${id}_buzzerSwitch), !!value); }},
               {"masterSwitch", [](int value) { publish_state_if_changed(id(${id}_masterSwitch), !!value); }},
-              {"acMode", [](int value) { const char* mode = (value == 1) ? "input" : "output"; publish_state_if_changed(id(${id}_acMode), mode);}},              {"packState", [](int value) {
+              {"acMode", [](int value) { const char* mode = (value == 1) ? "input" : "output"; publish_state_if_changed(id(${id}_acMode), mode);}},
+              {"packState", [](int value) {
                 const char* state = (value == 0) ? "Idle" : (value == 1) ? "Charging" : "Discharging";
                 publish_state_if_changed(id(${id}_packState), state);
               }},
@@ -263,28 +264,6 @@ select:
             int timestamp = (int) id(${time_id}).now().timestamp;
             int propValue = x == "Other" ? 0 : (x == "Hoymiles" ? 1 : (x == "Enphase" ? 2 : (x == "APsystems" ? 3 : (x == "Anker" ? 4 : (x == "Deye" ? 5 : (x == "BossWerk" ? 6 : 7))))));
             snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"pvBrand\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
-            std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
-            ESP_LOGD("${id}", "Sending Command '%s'", buffer);
-            return value;
-    - platform: template
-    name: "${name} AC Mode"
-    id: "${id}_acMode"
-    icon: "mdi:current-ac"
-    options:
-      - "input"
-      - "output"
-    optimistic: true
-    restore_value: true
-    set_action:
-      - ble_client.ble_write:
-          id: "zendure_ble_${id}"
-          service_uuid: a002
-          characteristic_uuid: c304
-          value: !lambda |-
-            char buffer[120];
-            int timestamp = (int) id(${time_id}).now().timestamp;
-            int propValue = x == "input" ? 1 : 2;
-            snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"acMode\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
             std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
             ESP_LOGD("${id}", "Sending Command '%s'", buffer);
             return value;
