@@ -82,6 +82,10 @@ text_sensor:
       then:
         - lambda: |-
             static const sensor_handler_map_t property_handlers = {
+              {"acMode", [](int value) {
+  const char* mode = (value == 1) ? "input" : "output";
+  publish_state_if_changed(id(${id}_acMode), mode);
+}},
               {"outputHomePower", [](int value) { publish_state_if_changed(id(${id}_outputHomePower), value); }},
               {"solarPower1", [](int value) { publish_state_if_changed(id(${id}_solarPower1), value); }},
               {"solarPower2", [](int value) { publish_state_if_changed(id(${id}_solarPower2), value); }},
@@ -238,6 +242,29 @@ binary_sensor:
     name: "${name} Master Switch"
 
 select:
+  - platform: template
+    name: "${name} AC Mode"
+    id: "${id}_acMode"
+    icon: "mdi:current-ac"
+    options:
+      - "input"
+      - "output"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - ble_client.ble_write:
+          id: "zendure_ble_${id}"
+          service_uuid: a002
+          characteristic_uuid: c304
+          value: !lambda |-
+            char buffer[120];
+            int timestamp = (int) id(${time_id}).now().timestamp;
+            int propValue = x == "input" ? 1 : 2;
+            snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"acMode\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
+            std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
+            ESP_LOGD("${id}", "Sending Command '%s'", buffer);
+            return value;
+
   - platform: template
     name: "${name} PV Brand"
     id: "${id}_pvBrand"
