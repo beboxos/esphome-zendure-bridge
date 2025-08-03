@@ -100,6 +100,7 @@ text_sensor:
               {"buzzerSwitch", [](int value) { publish_state_if_changed(id(${id}_buzzerSwitch), !!value); }},
               {"masterSwitch", [](int value) { publish_state_if_changed(id(${id}_masterSwitch), !!value); }},
               {"acMode", [](int value) {
+                ESP_LOGD("debug", "Received acMode: %d", value);
                 const char* mode = (value == 1) ? "input" : "output";
                 publish_state_if_changed(id(${id}_acMode), mode);
               }},
