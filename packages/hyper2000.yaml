@@ -100,9 +100,10 @@ text_sensor:
               {"buzzerSwitch", [](int value) { publish_state_if_changed(id(${id}_buzzerSwitch), !!value); }},
               {"masterSwitch", [](int value) { publish_state_if_changed(id(${id}_masterSwitch), !!value); }},
               {"acMode", [](int value) {
-                ESP_LOGD("debug", "Received acMode: %d", value);
+                ESP_LOGD("debug", "Received acMode raw value: %d", value);
                 const char* mode = (value == 1) ? "input" : "output";
-                publish_state_if_changed(id(${id}_acMode), mode);
+                ESP_LOGD("debug", "Publishing acMode as: %s", mode);
+                id(${id}_acMode).publish_state(mode); // Publication forcée
               }},
               {"packState", [](int value) {
                 const char* state = (value == 0) ? "Idle" : (value == 1) ? "Charging" : "Discharging";
@@ -126,6 +127,7 @@ text_sensor:
             };
 
             json::parse_json(x, [](JsonObject root) -> bool {
+              ESP_LOGD("debug", "Parsing JSON: %s", x.c_str());
               handle_device_message(
                 root,
                 property_handlers,
@@ -133,9 +135,9 @@ text_sensor:
                 id(${id}_device_id),
                 "${id}"
               );
-
               return true;
             });
+
   - platform: template
     id: "${id}_packState"
     name: "${name} Pack State"
@@ -260,7 +262,7 @@ select:
           value: !lambda |-
             char buffer[120];
             int timestamp = (int) id(${time_id}).now().timestamp;
-            int propValue = x == "input" ? 1 : 2;
+            int propValue = x == "input" ? 1 : 0; // Corrigé pour 0 au lieu de 2
             snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"acMode\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
             std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
             ESP_LOGD("${id}", "Sending Command '%s'", buffer);
