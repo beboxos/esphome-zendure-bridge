@@ -82,6 +82,7 @@ text_sensor:
         - lambda: |-
             static const sensor_handler_map_t property_handlers = {
               {"outputHomePower", [](int value) { publish_state_if_changed(id(${id}_outputHomePower), value); }},
+              {"gridInputPower", [](int value) { publish_state_if_changed(id(${id}_gridInputPower), value); }},
               {"solarPower1", [](int value) { publish_state_if_changed(id(${id}_solarPower1), value); }},
               {"solarPower2", [](int value) { publish_state_if_changed(id(${id}_solarPower2), value); }},
               {"solarInputPower", [](int value) { publish_state_if_changed(id(${id}_solarInputPower), value); }},
