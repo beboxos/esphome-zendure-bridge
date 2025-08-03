@@ -94,9 +94,9 @@ text_sensor:
               {"masterSoftVersion", [](int value) { publish_state_if_changed(id(${id}_masterSoftVersion), decode_version(value)); }},
               {"pass", [](int value) { publish_state_if_changed(id(${id}_pass), !!value); }},
               {"outputLimit", [](int value) { publish_state_if_changed(id(${id}_outputLimit), value); }},
+              {"inputLimit", [](int value) { publish_state_if_changed(id(${id}_inputLimit), value); }},
               {"socSet", [](int value) { publish_state_if_changed(id(${id}_socSet), value / PERCENT_SCALE); }},
               {"minSoc", [](int value) { publish_state_if_changed(id(${id}_minSoc), value / PERCENT_SCALE); }},
-              {"buzzerSwitch", [](int value) { publish_state_if_changed(id(${id}_buzzerSwitch), !!value); }},
               {"masterSwitch", [](int value) { publish_state_if_changed(id(${id}_masterSwitch), !!value); }},
               {"acMode", [](int value) {
                 ESP_LOGD("debug", "Received acMode: %d", value);
@@ -108,12 +108,7 @@ text_sensor:
                 publish_state_if_changed(id(${id}_packState), state);
               }},
               {"wifiState", [](int value) { publish_state_if_changed(id(${id}_wifiState), !!value); }},
-              {"autoRecover", [](int value) { publish_state_if_changed(id(${id}_autoRecover), !!value); }},
               {"lampSwitch", [](int value) { publish_state_if_changed(id(${id}_lampSwitch), !!value); }},
-              {"passMode", [](int value) {
-                const char* mode = (value == 0) ? "Auto" : (value == 1) ? "Always-Off" : "Always-On";
-                publish_state_if_changed(id(${id}_passMode), mode);
-              }},
               {"hubState", [](int value) {
                 const char* state = (value == 0) ? "Standby" : "Shut Down";
                 publish_state_if_changed(id(${id}_hubState), state);
@@ -316,29 +311,6 @@ select:
             std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
             ESP_LOGD("${id}", "Sending Command '%s'", buffer);
             return value;
-  - platform: template
-    name: "${name} Pass Mode"
-    id: "${id}_passMode"
-    icon: "mdi:arrow-decision"
-    options:
-      - "Auto"
-      - "Always-Off"
-      - "Always-On"
-    optimistic: true
-    restore_value: true
-    set_action:
-      - ble_client.ble_write:
-          id: "zendure_ble_${id}"
-          service_uuid: a002
-          characteristic_uuid: c304
-          value: !lambda |-
-            char buffer[120];
-            int timestamp = (int) id(${time_id}).now().timestamp;
-            int propValue = x == "Auto" ? 0 : (x == "Always-Off" ? 1 : 2);
-            snprintf(buffer, sizeof(buffer), "{\"method\":\"write\",\"timestamp\":\"%d\",\"messageId\":\"none\",\"deviceId\":\"%s\",\"properties\":{\"passMode\":%d}}", timestamp, id(${id}_device_id).c_str(), propValue);
-            std::vector<uint8_t> value(buffer, buffer + strlen(buffer));
-            ESP_LOGD("${id}", "Sending Command '%s'", buffer);
-            return value;
 
 switch:
   - platform: ble_client
@@ -347,48 +319,6 @@ switch:
     entity_category: config
     restore_mode: DISABLED
     name: "${name} Bluetooth"
-  - platform: template
-    name: "${name} Buzzer Switch"
-    id: "${id}_buzzerSwitch"
-    optimistic: true
-    icon: "mdi:volume-high"
-    turn_on_action:
-      - !include
-        file: includes/ble-set-property-value.yaml
-        vars:
-          time_id: "${time_id}"
-          device_id: "${id}"
-          key: buzzerSwitch
-          value: 1
-    turn_off_action:
-      - !include
-        file: includes/ble-set-property-value.yaml
-        vars:
-          time_id: "${time_id}"
-          device_id: "${id}"
-          key: buzzerSwitch
-          value: 0
-  - platform: template
-    name: "${name} Auto Recover"
-    id: "${id}_autoRecover"
-    optimistic: true
-    icon: "mdi:restore"
-    turn_on_action:
-      - !include
-        file: includes/ble-set-property-value.yaml
-        vars:
-          time_id: "${time_id}"
-          device_id: "${id}"
-          key: autoRecover
-          value: 1
-    turn_off_action:
-      - !include
-        file: includes/ble-set-property-value.yaml
-        vars:
-          time_id: "${time_id}"
-          device_id: "${id}"
-          key: autoRecover
-          value: 0
   - platform: template
     name: "${name} lampSwitch"
     id: "${id}_lampSwitch"
@@ -428,6 +358,24 @@ number:
           time_id: "${time_id}"
           device_id: "${id}"
           key: outputLimit
+          append_value: ""
+  - platform: template
+    name: "${name} Input Limit"
+    device_class: power
+    mode: slider
+    id: "${id}_inputLimit"
+    unit_of_measurement: W
+    min_value: 0
+    max_value: 1200
+    step: 1
+    optimistic: true
+    set_action:
+      - !include
+        file: includes/ble-set-property.yaml
+        vars:
+          time_id: "${time_id}"
+          device_id: "${id}"
+          key: inputLimit
           append_value: ""
   - platform: template
     name: "${name} Min Soc"
