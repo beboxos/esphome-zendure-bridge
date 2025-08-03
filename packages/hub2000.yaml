@@ -2,7 +2,7 @@ defaults:
   time_id: "zenduretime"
   name: "Hub2000"
   id: "hub_2000"
-  watt_limit: "800"
+  watt_limit: "1200"
   # mac_address: ""
 
 external_components:
