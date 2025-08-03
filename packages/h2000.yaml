@@ -158,6 +158,13 @@ sensor:
     accuracy_decimals: 0
     id: "${id}_outputHomePower"
   - platform: template
+    name: "${name} Input from Home Power"
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    id: "${id}_gridInputPower"
+  - platform: template
     name: "${name} Solar Power 1"
     icon: "mdi:solar-power"
     device_class: power
